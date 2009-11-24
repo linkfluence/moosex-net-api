@@ -6,14 +6,16 @@ use Try::Tiny;
 
 our $VERSION = '0.01';
 
-our $content_type = {
+our $list_content_type = {
     'json' => 'application/json',
     'yaml' => 'text/x-yaml',
     'xml'  => 'text/xml',
 };
+our $reverse_content_type = { 'application/json' => 'json', };
 
 Moose::Exporter->setup_import_methods(
-    with_caller => [qw/net_api_method format_query require_authentication/], );
+    with_caller => [ qw/net_api_method format_query require_authentication/ ],
+);
 
 sub format_query {
     my ( $caller, $name, %options ) = @_;
@@ -51,14 +53,21 @@ sub net_api_method {
             my $self = shift;
             my %args = @_;
 
+            if (!$self->meta->does_role('MooseX::Net::API::Roles::Deserialize')){
+                MooseX::Net::API::Roles::Deserialize->meta->apply($self);
+            }
+            if (!$self->meta->does_role('MooseX::Net::API::Roles::Serialize')){
+                MooseX::Net::API::Roles::Serialize->meta->apply($self);
+            }
+
             # XXX apply to all
-            if ($options{path} =~ /\$(\w+)/) {
+            if ( $options{path} =~ /\$(\w+)/ ) {
                 my $match = $1;
-                if (my $value = delete $args{$match}) {
+                if ( my $value = delete $args{$match} ) {
                     $options{path} =~ s/\$$match/$value/;
                 }
             }
-            my $url = $self->api_base_url.$options{path};
+            my $url = $self->api_base_url . $options{path};
 
             my $format = $caller->_format($self);
             $url .= "." . $self->format if ( $format->{mode} eq 'append' );
@@ -69,22 +78,36 @@ sub net_api_method {
             my $method = $options{method};
             if ( $method =~ /^(?:GET|DELETE)$/ ) {
                 $uri->query_form(%args);
-                $req = HTTP::Request->new($method => $uri);
+                $req = HTTP::Request->new( $method => $uri );
             }
             elsif ( $method =~ /^(?:POST|PUT)$/ ) {
-                $req = HTTP::Request->new($method => $uri);
+                $req = HTTP::Request->new( $method => $uri );
+
                 # XXX handle POST and PUT for params
             }
             else {
                 croak "$method is not defined";
             }
 
-            $req->header(
-                'Content-Type' => $content_type->{ $format->{format} } )
+            # XXX check presence content type
+            $req->header( 'Content-Type' =>
+                    $list_content_type->{ $format->{format} }->{header} )
                 if $format->{mode} eq 'content-type';
-            #return 1;
+
             my $res = $self->useragent->request($req);
-            return $res->content;
+            if ( $res->is_success ) {
+                my $content_type = $res->headers->{"content-type"};
+                if ( my $type = $reverse_content_type->{$content_type} ) {
+                    my $method = '_from_' . $type;
+                    return $self->$method( $res->content );
+                }
+            }
+            else {
+                return MooseX::Net::API::Error->new(
+                    code  => $res->code,
+                    error => $res->content
+                );
+            }
         };
     }
     else {
@@ -143,6 +166,46 @@ sub new {
     my %args  = @_;
     $class->SUPER::wrap(@_);
 
+}
+
+package MooseX::Net::API::Roles::Deserialize;
+
+use Moose::Role;
+use JSON::XS;
+use YAML::Syck;
+use XML::Simple;
+
+sub _from_json {
+    return decode_json( $_[1] );
+}
+
+sub _from_yaml {
+    return Dump $_[1];
+}
+
+sub _from_xml {
+    my $xml = XML::Simple->new( ForceArray => 0 );
+    $xml->XMLout( { data => $_[0] } );
+}
+
+package MooseX::Net::API::Roles::Serialize;
+
+use Moose::Role;
+use JSON::XS;
+use YAML::Syck;
+use XML::Simple;
+
+sub _to_json {
+    return encode_json( $_[1] );
+}
+
+sub _to_yaml {
+    return Load $_[1];
+}
+
+sub _to_xml {
+    my $xml = XML::Simple->new( ForceArray => 0 );
+    $xml->XMLin("$_[0]");
 }
 
 1;
