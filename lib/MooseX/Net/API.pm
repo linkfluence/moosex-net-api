@@ -51,6 +51,7 @@ sub net_api_method {
             my $self = shift;
             my %args = @_;
 
+            # XXX apply to all
             if ($options{path} =~ /\$(\w+)/) {
                 my $match = $1;
                 if (my $value = delete $args{$match}) {
@@ -72,6 +73,7 @@ sub net_api_method {
             }
             elsif ( $method =~ /^(?:POST|PUT)$/ ) {
                 $req = HTTP::Request->new($method => $uri);
+                # XXX handle POST and PUT for params
             }
             else {
                 croak "$method is not defined";
@@ -88,6 +90,7 @@ sub net_api_method {
     else {
         $code = delete $options{code};
     }
+
     $class->add_method(
         $name,
         MooseX::Net::API::Meta::Method->new(
@@ -151,18 +154,54 @@ MooseX::Net::API - Easily create client for net API
 
 =head1 SYNOPSIS
 
+  package My::Net::API;
+  use Moose;
   use MooseX::Net::API;
 
   net_api_method => (
     description => 'this get foo',
     method      => 'GET',
     path        => '/foo/',
-    arguments   => qw[/user group/],
+    params      => [qw/user group/],
+    required    => [qw/user/],
   );
 
 =head1 DESCRIPTION
 
-MooseX::Net::API is
+MooseX::Net::API is module to help to easily create a client to a web
+ API
+
+=head2 METHODS
+
+=over 4
+
+=item B<net_api_method>
+
+=over 2
+
+=item B<description>
+
+description of the method (this is a documentation)
+
+=item B<method>
+
+HTTP method (GET, POST, PUT, DELETE)
+
+=item B<path>
+
+path of the query
+
+=item B<params>
+
+list of params
+
+=item B<required>
+
+list of required params
+
+=back
+
+=back
 
 =head1 AUTHOR
 
