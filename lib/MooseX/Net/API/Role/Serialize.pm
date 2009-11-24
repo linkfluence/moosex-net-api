@@ -1,4 +1,4 @@
-package MooseX::Net::API::Roles::Serialize;
+package MooseX::Net::API::Role::Serialize;
 
 use Moose::Role;
 use JSON::XS;

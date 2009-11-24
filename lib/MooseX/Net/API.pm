@@ -1,8 +1,11 @@
 package MooseX::Net::API;
 
-use Moose::Exporter;
 use Carp;
 use Try::Tiny;
+use Moose::Exporter;
+use MooseX::Net::API::Error;
+use MooseX::Net::API::Role::Deserialize;
+use MooseX::Net::API::Role::Serialize;
 
 our $VERSION = '0.01';
 
@@ -53,11 +56,11 @@ sub net_api_method {
             my $self = shift;
             my %args = @_;
 
-            if (!$self->meta->does_role('MooseX::Net::API::Roles::Deserialize')){
-                MooseX::Net::API::Roles::Deserialize->meta->apply($self);
+            if (!$self->meta->does_role('MooseX::Net::API::Role::Deserialize')){
+                MooseX::Net::API::Role::Deserialize->meta->apply($self);
             }
-            if (!$self->meta->does_role('MooseX::Net::API::Roles::Serialize')){
-                MooseX::Net::API::Roles::Serialize->meta->apply($self);
+            if (!$self->meta->does_role('MooseX::Net::API::Role::Serialize')){
+                MooseX::Net::API::Role::Serialize->meta->apply($self);
             }
 
             # XXX apply to all
@@ -82,7 +85,6 @@ sub net_api_method {
             }
             elsif ( $method =~ /^(?:POST|PUT)$/ ) {
                 $req = HTTP::Request->new( $method => $uri );
-
                 # XXX handle POST and PUT for params
             }
             else {
@@ -91,24 +93,30 @@ sub net_api_method {
 
             # XXX check presence content type
             $req->header( 'Content-Type' =>
-                    $list_content_type->{ $format->{format} }->{header} )
+                    $list_content_type->{ $format->{format} } )
                 if $format->{mode} eq 'content-type';
 
             my $res = $self->useragent->request($req);
             my $content_type = $res->headers->{"content-type"};
 
+            my @deserialize_order = ( $content_type, $format->{format},
+                keys %$list_content_type );
+
             if ( $res->is_success ) {
-                if ( my $type = $reverse_content_type->{$content_type} ) {
-                    my $method = '_from_' . $type;
-                    return $self->$method( $res->content );
-                }else{
+                my $content;
+                foreach my $deserializer (@deserialize_order) {
+                    my $method = '_from_' . $deserializer;
+                    try {
+                        $content = $self->$method($res->content);
+                    };
+                    return $content if $content;
                 }
             }
             else {
-                return MooseX::Net::API::Error->new(
-                    code  => $res->code,
-                    error => $res->content
-                );
+                #return MooseX::Net::API::Error->new(
+                    #code  => $res->code,
+                    #error => $res->content
+                #);
             }
         };
     }
@@ -133,12 +141,14 @@ sub _request {
 
 sub _init_useragent {
     my $class = shift;
+
     try {
         require LWP::UserAgent;
     }
     catch {
         croak "no useragent defined and LWP::UserAgent is not available";
     };
+
     my $ua = LWP::UserAgent->new();
     $ua->env_proxy;
 
