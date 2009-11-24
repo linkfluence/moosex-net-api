@@ -95,11 +95,13 @@ sub net_api_method {
                 if $format->{mode} eq 'content-type';
 
             my $res = $self->useragent->request($req);
+            my $content_type = $res->headers->{"content-type"};
+
             if ( $res->is_success ) {
-                my $content_type = $res->headers->{"content-type"};
                 if ( my $type = $reverse_content_type->{$content_type} ) {
                     my $method = '_from_' . $type;
                     return $self->$method( $res->content );
+                }else{
                 }
             }
             else {
@@ -168,47 +170,8 @@ sub new {
 
 }
 
-package MooseX::Net::API::Roles::Deserialize;
-
-use Moose::Role;
-use JSON::XS;
-use YAML::Syck;
-use XML::Simple;
-
-sub _from_json {
-    return decode_json( $_[1] );
-}
-
-sub _from_yaml {
-    return Dump $_[1];
-}
-
-sub _from_xml {
-    my $xml = XML::Simple->new( ForceArray => 0 );
-    $xml->XMLout( { data => $_[0] } );
-}
-
-package MooseX::Net::API::Roles::Serialize;
-
-use Moose::Role;
-use JSON::XS;
-use YAML::Syck;
-use XML::Simple;
-
-sub _to_json {
-    return encode_json( $_[1] );
-}
-
-sub _to_yaml {
-    return Load $_[1];
-}
-
-sub _to_xml {
-    my $xml = XML::Simple->new( ForceArray => 0 );
-    $xml->XMLin("$_[0]");
-}
-
 1;
+
 __END__
 
 =head1 NAME
