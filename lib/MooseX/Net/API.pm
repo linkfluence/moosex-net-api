@@ -367,7 +367,8 @@ MooseX::Net::API - Easily create client for net API
 
 =head1 DESCRIPTION
 
-MooseX::Net::API is module to help to easily create a client to a web API
+MooseX::Net::API is module to help to easily create a client to a web API.
+This module is heavily inspired by what Net::Twitter does.
 
 =head2 METHODS
 
@@ -425,6 +426,11 @@ list of required params.
 =item B<authentication> (optional)
 
 should we do an authenticated call
+
+=item B<params_in_url> (optional)
+
+When you do a post, the content may have to be sent as arguments in the url,
+and not as content in the header.
 
 =back
 
