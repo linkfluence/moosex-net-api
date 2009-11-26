@@ -367,8 +367,8 @@ MooseX::Net::API - Easily create client for net API
 
 =head1 DESCRIPTION
 
-MooseX::Net::API is module to help to easily create a client to a web API.
-This module is heavily inspired by what Net::Twitter does.
+MooseX::Net::API is module to help to easily create a client for a web API.
+This module is heavily inspired by what L<Net::Twitter> does.
 
 =head2 METHODS
 
