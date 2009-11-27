@@ -15,7 +15,7 @@ sub _from_yaml {
 
 sub _from_xml {
     my $xml = XML::Simple->new( ForceArray => 0 );
-    $xml->XMLout( { data => $_[0] } );
+    $xml->XMLin( $_[1] );
 }
 
 1;

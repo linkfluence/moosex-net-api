@@ -1,6 +1,8 @@
 package MooseX::Net::API;
 
 use Carp;
+use URI;
+use HTTP::Request;
 use Try::Tiny;
 use Moose::Exporter;
 use MooseX::Net::API::Error;
@@ -17,7 +19,8 @@ my $list_content_type = {
 my $reverse_content_type = {
     'application/json'   => 'json',
     'application/x-yaml' => 'yaml',
-    'text/xml'           => 'xml'
+    'text/xml'           => 'xml',
+    'application/xml'    => 'xml',
 };
 
 # XXX uri builder
@@ -209,6 +212,7 @@ sub net_api_method {
 
             my $res          = $self->useragent->request($req);
             my $content_type = $res->headers->{"content-type"};
+            $content_type =~ s/(;.+)$//;
 
             my @deserialize_order
                 = ( $content_type, $format, keys %$list_content_type );
@@ -286,7 +290,14 @@ sub _do_deserialization {
 
     my $content;
     foreach my $deserializer (@content_types) {
-        my $method = '_from_' . $deserializer;
+        my $method;
+        if ( $reverse_content_type->{$deserializer} ) {
+            $method = '_from_' . $reverse_content_type->{$deserializer};
+        }
+        else {
+            $method = '_from_' . $deserializer;
+        }
+        next if ( !$caller->meta->find_method_by_name($method) );
         try {
             $content = $caller->$method($raw_content);
         };
