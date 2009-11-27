@@ -4,8 +4,6 @@ use lib ('t/lib');
 
 use Test::More;
 use Identica;
-use YAML::Syck;
-use Try::Tiny;
 
 BEGIN {
     plan skip_all =>
